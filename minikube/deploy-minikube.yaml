@@ -1,0 +1,65 @@
+---
+- name: play-1 Install node & npm
+  hosts: all
+  become: yes
+  tasks:
+  - name: play-1-task-1 update apt repo & cache
+    apt: update_cache=yes force_apt_get=yes cache_valid_time=3600 upgrade=dist
+  - name: install docker.io
+    apt: 
+      name:
+      - python3
+      - pip
+      - docker.io
+      - curl
+      - net-tools
+  - name: making some alias
+    ansible.builtin.blockinfile:
+      path: /etc/bash.bashrc
+      block: |
+        alias c=clear
+        alias k=kubectl      
+- name: Install kubectl
+  hosts: all
+  become: yes
+  tasks:
+  - name: Download kubectl & minikube
+    get_url:
+      url: https://dl.k8s.io/release/v1.27.4/bin/linux/amd64/kubectl
+      dest: /usr/local/bin/kubectl
+      mode: +x
+    register: download_result        # just a variable holding the results of the task
+  - debug: msg={{download_result}}   # to print the variable man
+
+  - name: Install minikube .deb package from the internet
+    ansible.builtin.apt:
+      deb: https://storage.googleapis.com/minikube/releases/latest/minikube_latest_amd64.deb
+
+  # - name: Download minikube
+  #   get_url:
+  #     url: https://storage.googleapis.com/minikube/releases/latest/minikube_latest_amd64.deb
+  #     dest: /root
+  #     # mode: +x   
+  # - name: Install a .deb package
+  #   ansible.builtin.apt:
+  #     deb: /root/minikube_latest_amd64.deb  
+
+  # - name: dpkg minikube
+  #     shell: install /root/     
+  - name: start docker 
+    systemd: 
+      name: docker 
+      state: started
+  - name: Add ubuntu to docker group
+    user: 
+      name: ubuntu
+      groups: docker 
+      append: yes
+  - name: Reconnect to server session
+    meta: reset_connection
+  - name: start minikube as ubuntu user
+    ansible.builtin.command: 
+    become: yes
+    become_user: ubuntu
+    args:
+      cmd: minikube start
