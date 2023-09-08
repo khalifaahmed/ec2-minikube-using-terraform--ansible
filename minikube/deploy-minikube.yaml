@@ -1,9 +1,9 @@
 ---
-- name: play-1 Install node & npm
+- name: update the system && install packages
   hosts: all
   become: yes
   tasks:
-  - name: play-1-task-1 update apt repo & cache
+  - name: update apt repo & cache
     apt: update_cache=yes force_apt_get=yes cache_valid_time=3600 upgrade=dist
   - name: install docker.io
     apt: 
@@ -19,18 +19,16 @@
       block: |
         alias c=clear
         alias k=kubectl      
-- name: Install kubectl
-  hosts: all
-  become: yes
-  tasks:
   - name: Download kubectl & minikube
     get_url:
       url: https://dl.k8s.io/release/v1.27.4/bin/linux/amd64/kubectl
       dest: /usr/local/bin/kubectl
       mode: +x
-    register: download_result        # just a variable holding the results of the task
-  - debug: msg={{download_result}}   # to print the variable man
-
+    register: download_result      
+  - name: output the register variable value  
+    debug:
+      msg: 
+      - "the download_result register of downloading the kubectl =  {{download_result}} "
   - name: Install minikube .deb package from the internet
     ansible.builtin.apt:
       deb: https://storage.googleapis.com/minikube/releases/latest/minikube_latest_amd64.deb
@@ -43,9 +41,9 @@
   # - name: Install a .deb package
   #   ansible.builtin.apt:
   #     deb: /root/minikube_latest_amd64.deb  
-
   # - name: dpkg minikube
   #     shell: install /root/     
+
   - name: start docker 
     systemd: 
       name: docker 
