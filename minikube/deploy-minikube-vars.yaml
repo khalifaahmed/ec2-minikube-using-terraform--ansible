@@ -67,7 +67,7 @@
     become: yes
     become_user: ubuntu
     args:
-      cmd: minikube start --apiserver-ips=16.170.226.126
+      cmd: minikube start --apiserver-ips=${ec2_public_ip}
   - name: configure reverse proxy by nginx
     ansible.builtin.blockinfile:
       path: /etc/nginx/nginx.conf
