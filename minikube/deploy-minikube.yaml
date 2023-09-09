@@ -67,7 +67,7 @@
     become: yes
     become_user: ubuntu
     args:
-      cmd: minikube start --apiserver-ips=16.170.226.126
+      cmd: minikube start --apiserver-ips=16.16.70.55
   - name: configure reverse proxy by nginx
     ansible.builtin.blockinfile:
       path: /etc/nginx/nginx.conf
@@ -83,6 +83,68 @@
     ansible.builtin.systemd:
       name: nginx
       state: restarted   
+
+  - name: Check if .kube/config exists
+    ansible.builtin.stat:
+      path: /home/ubuntu/.kube/config.original 
+    register: stat_result  
+  - name: Buckup the native kubeconfig file once and for all
+    copy:
+      src:  /home/ubuntu/.kube/config
+      dest: /home/ubuntu/.kube/config.original
+      remote_src: true
+    when: not stat_result.stat.exists
+
+  - name: do the encode ca.crt
+    shell: 'cat /home/ubuntu/.minikube/ca.crt | /usr/bin/base64 | tr -d "\n" '
+    register: bvalue_ca_crt
+  - name: output the register variable 
+    debug:
+      msg: 
+      - "the register value of the encoding =  {{bvalue_ca_crt}} "
+  - name: modifing the kubeconfig file  
+    lineinfile: 
+      path: /home/ubuntu/.kube/config
+      regexp: '^    certificate-authority: /home/ubuntu/.minikube/ca.crt'
+      line: '    certificate-authority-data: {{bvalue_ca_crt.stdout}}'
+ 
+  - name: do the encode user.crt
+    shell: 'cat /home/ubuntu/.minikube/profiles/minikube/client.crt | /usr/bin/base64 | tr -d "\n" '
+    register: bvalue_user_crt
+  - name: output the register variable 
+    debug:
+      msg: 
+      - "the register value of the encoding =  {{bvalue_user_crt}} "
+  - name: modifing the kubeconfig file  
+    lineinfile: 
+      path: /home/ubuntu/.kube/config
+      regexp: '^    client-certificate: /home/ubuntu/.minikube/profiles/minikube/client.crt'
+      line: '    client-certificate-data: {{bvalue_user_crt.stdout}}'
+ 
+  - name: do the encode user.key
+    shell: 'cat /home/ubuntu/.minikube/profiles/minikube/client.key | /usr/bin/base64 | tr -d "\n" '
+    register: bvalue_user_key
+  - name: output the register variable 
+    debug:
+      msg: 
+      - "the register value of the encoding =  {{bvalue_user_key}} "
+  - name: modifing the kubeconfig file  
+    lineinfile: 
+      path: /home/ubuntu/.kube/config
+      regexp: '^    client-key: /home/ubuntu/.minikube/profiles/minikube/client.key'
+      line: '    client-key-data: {{bvalue_user_key.stdout}}'
+
+  - name: create our host kubeconfig 
+    copy:
+      src:  /home/ubuntu/.kube/config
+      dest: /home/ubuntu/.kube/config.host
+      remote_src: true
+  - name: modifing the host kubeconfig   
+    lineinfile: 
+      path: /home/ubuntu/.kube/config.host
+      regexp: '^    server: https://192.168.49.2:8443'
+      line: '    server: https://16.16.70.55:8443'
+ 
 
 
 # After that --> Just adjust the kube-config file man
