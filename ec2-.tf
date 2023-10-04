@@ -61,7 +61,7 @@ resource "aws_instance" "myec2" {
 
   provisioner "local-exec" {
     working_dir = "./minikube"
-    command     = "ssh-keyscan -H ${self.public_ip} >> /home/ahmed/.ssh/known_hosts ; export ec2_public_ip=${self.public_ip} ; envsubst < deploy-minikube-vars.yaml > deploy-minikube.yaml ; sleep 125 ; ansible-playbook --inventory ${self.public_ip}, --user ubuntu  deploy-minikube.yaml"
+    command     = "export ec2_public_ip=${self.public_ip} ; envsubst < deploy-minikube-vars.yaml > deploy-minikube.yaml ; sleep 125 ; ansible-playbook --inventory ${self.public_ip}, --user ubuntu  deploy-minikube.yaml"
   }
 
   provisioner "local-exec" {
