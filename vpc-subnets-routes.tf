@@ -21,7 +21,18 @@ resource "aws_internet_gateway" "gw" {
 
 
 
+data "aws_region" "current_region" {}
+
+output "the_current_region_man" {
+  value = data.aws_region.current_region.name
+}
+
 data "aws_availability_zones" "available" {}
+
+output "number_of_az_in_this_region" {
+  value = length(data.aws_availability_zones.available.names)
+}
+
 
 resource "random_shuffle" "az_list" {
   input        = data.aws_availability_zones.available.names
@@ -50,9 +61,6 @@ resource "aws_subnet" "private" {
   }
 }
 
-output "number_of_az_in_this_region" {
-  value = length(data.aws_availability_zones.available.names)
-}
 
 
 resource "aws_route_table" "public" {

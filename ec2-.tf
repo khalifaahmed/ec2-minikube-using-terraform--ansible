@@ -20,12 +20,35 @@ data "aws_ami" "ubuntu_ami" {
   }
 }
 
+
+# Generates a secure private key and encodes it as PEM
+resource "tls_private_key" "key_pair" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+# Create the Key Pair
+resource "aws_key_pair" "key_pair" {
+  key_name   = "${data.aws_region.current_region.name}-terraform-key"
+  public_key = tls_private_key.key_pair.public_key_openssh
+}
+# Save file
+resource "local_file" "ssh_key" {
+  filename        = "${aws_key_pair.key_pair.key_name}.pem"
+  content         = tls_private_key.key_pair.private_key_pem
+  file_permission = "0400"
+
+  provisioner "local-exec" {
+    command = "ssh-add -k ${path.module}/${aws_key_pair.key_pair.key_name}.pem"
+  }
+}
+
+
 # EC2 Instance
 resource "aws_instance" "myec2" {
   count                       = var.ec2_count
   ami                         = data.aws_ami.ubuntu_ami.id
   instance_type               = "t3.small"
-  key_name                    = var.key
+  key_name                    = aws_key_pair.key_pair.key_name  #var.key
   associate_public_ip_address = true
   subnet_id                   = aws_subnet.public[0].id
   vpc_security_group_ids      = [aws_security_group.grad_proj_sg["public"].id]
@@ -38,8 +61,14 @@ resource "aws_instance" "myec2" {
 
   provisioner "local-exec" {
     working_dir = "./minikube"
-    command     = "ssh-keyscan -H ${self.public_ip} >> /home/ahmed/.ssh/known_hosts ; export ec2_public_ip=${self.public_ip} ; envsubst < deploy-minikube-vars.yaml > deploy-minikube.yaml ; ansible-playbook --inventory ${self.public_ip}, --user ubuntu --private-key /home/ahmed/Desktop/stockholm_key.pem  deploy-minikube.yaml"
+    command     = "ssh-keyscan -H ${self.public_ip} >> /home/ahmed/.ssh/known_hosts ; export ec2_public_ip=${self.public_ip} ; envsubst < deploy-minikube-vars.yaml > deploy-minikube.yaml ; sleep 125 ; ansible-playbook --inventory ${self.public_ip}, --user ubuntu  deploy-minikube.yaml"
   }
+
+  provisioner "local-exec" {
+    working_dir = "./minikube"
+    command     = "mv /home/ahmed/.kube/config /home/ahmed/.kube/config_before_ec2_minikube_man ; scp ubuntu@${self.public_ip}:/home/ubuntu/.kube/config.host /home/ahmed/.kube/config"
+  }
+
 }
 
 
